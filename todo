@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# todo - a minimal terminal to-do list
+# Tasks are stored in ~/.todo (override with TODO_FILE=/path/to/file)
+
+FILE="${TODO_FILE:-$HOME/.todo}"
+touch "$FILE"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  todo                 list tasks
+  todo add <text>      add a task
+  todo done <n>        mark task n as done
+  todo undo <n>        mark task n as not done
+  todo rm <n>          delete task n
+  todo clear           delete all finished tasks
+EOF
+}
+
+need_num() {
+  if ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 1 ] || [ "$1" -gt "$(wc -l < "$FILE")" ]; then
+    echo "Invalid task number: ${1:-<none>}" >&2
+    exit 1
+  fi
+}
+
+list() {
+  if [ ! -s "$FILE" ]; then
+    echo "Nothing to do. 🎉"
+    return
+  fi
+  nl -w2 -s'. ' "$FILE"
+}
+
+case "${1:-list}" in
+  add|a)
+    shift
+    [ -z "$*" ] && { echo "Nothing to add." >&2; exit 1; }
+    echo "[ ] $*" >> "$FILE"
+    list
+    ;;
+  list|ls) list ;;
+  done|d)  need_num "$2"; sed -i "${2}s/^\[ \]/[x]/" "$FILE"; list ;;
+  undo|u)  need_num "$2"; sed -i "${2}s/^\[x\]/[ ]/" "$FILE"; list ;;
+  rm|r)    need_num "$2"; sed -i "${2}d" "$FILE"; list ;;
+  clear)   sed -i '/^\[x\]/d' "$FILE"; list ;;
+  help|-h|--help) usage ;;
+  *) usage; exit 1 ;;
+esac
